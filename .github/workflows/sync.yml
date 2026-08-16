@@ -17,7 +17,11 @@ jobs:
           API_KEY: ${{ secrets.INTERVALS_API_KEY }}
           ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
         run: |
-          curl -u "API_KEY:${API_KEY}" "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv?oldest=2026-01-01&newest=2026-12-31" -o intervals_training_log.csv
+          # 오늘 날짜와 365일 전 날짜를 동적으로 계산
+          NEWEST=$(date +%Y-%m-%d)
+          OLDEST=$(date -d "365 days ago" +%Y-%m-%d)
+          
+          curl -u "API_KEY:${API_KEY}" "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv?oldest=${OLDEST}&newest=${NEWEST}" -o intervals_training_log.csv
 
       - name: Commit and push updated CSV
         run: |
