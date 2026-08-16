@@ -12,8 +12,10 @@ jobs:
     steps:
       - name: Check out repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Download and Sort CSV from Intervals.icu
+      - name: Download Intervals.icu CSV
         env:
           API_KEY: ${{ secrets.INTERVALS_API_KEY }}
           ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
@@ -23,35 +25,75 @@ jobs:
           OLDEST="2025-01-01"
           NEWEST=$(date -u +%Y-%m-%d)
 
-          echo "Downloading Intervals.icu data..."
-          echo "Date range: ${OLDEST} to ${NEWEST}"
+          echo "======================================"
+          echo "Intervals.icu CSV download"
+          echo "ATHLETE_ID: ${ATHLETE_ID}"
+          echo "DATE: ${OLDEST} ~ ${NEWEST}"
+          echo "======================================"
 
           curl -f -sS \
             -u "API_KEY:${API_KEY}" \
             "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv?oldest=${OLDEST}&newest=${NEWEST}" \
             -o raw.csv
 
-          echo "Download successful."
+          echo ""
+          echo "Downloaded CSV:"
+          ls -lh raw.csv
 
+          echo ""
+          echo "CSV first 3 lines:"
+          head -n 3 raw.csv
+
+          echo ""
+          echo "CSV last 3 lines:"
+          tail -n 3 raw.csv
+
+          # 파일이 정상적으로 존재하는지 확인
           if [ ! -s raw.csv ]; then
-            echo "ERROR: raw.csv is empty."
+            echo "ERROR: raw.csv is empty!"
             exit 1
           fi
 
-          echo "CSV header:"
-          head -n 1 raw.csv
+          # 새 파일 생성
+          head -n 1 raw.csv > new_intervals_training_log.csv
 
-          # 헤더 보존
-          head -n 1 raw.csv > intervals_training_log.csv
+          tail -n +2 raw.csv | sort -r -t',' -k2,2 >> new_intervals_training_log.csv
 
-          # 데이터만 날짜 기준 역순 정렬
-          tail -n +2 raw.csv | sort -r -t',' -k2,2 >> intervals_training_log.csv
+          echo ""
+          echo "New CSV:"
+          ls -lh new_intervals_training_log.csv
 
-          echo "CSV created successfully."
-          echo "Number of records:"
-          tail -n +2 intervals_training_log.csv | wc -l
+          echo ""
+          echo "Number of activities:"
+          tail -n +2 new_intervals_training_log.csv | wc -l
 
-      - name: Commit and push updated CSV
+          echo ""
+          echo "Latest 5 activities:"
+          tail -n +2 new_intervals_training_log.csv | head -n 5
+
+          # 기존 파일을 새 파일로 교체
+          mv new_intervals_training_log.csv intervals_training_log.csv
+
+          echo ""
+          echo "intervals_training_log.csv replaced successfully."
+
+      - name: Check Git changes
+        run: |
+          echo "======================================"
+          echo "Git status"
+          echo "======================================"
+
+          git status --short
+
+          echo ""
+          echo "Changed files:"
+          git diff --stat
+
+          echo ""
+          echo "CSV file:"
+          ls -lh intervals_training_log.csv
+
+      - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -59,9 +101,13 @@ jobs:
           git add intervals_training_log.csv
 
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "No changes detected."
+            echo "Intervals.icu returned the same data as the existing CSV."
             exit 0
           fi
 
-          git commit -m "Auto update training log"
+          echo "Changes detected. Committing..."
+
+          git commit -m "Update Intervals.icu training data"
+
           git push
