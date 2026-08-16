@@ -1,53 +1,30 @@
 import os
 import csv
 import requests
-from datetime import datetime, timedelta
 
 API_KEY = os.environ.get("INTERVALS_API_KEY")
 ATHLETE_ID = os.environ.get("INTERVALS_ATHLETE_ID")
 
-oldest = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
-newest = datetime.now().strftime("%Y-%m-%d")
-
-url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities?oldest={oldest}&newest={newest}"
-
+# 전체 액티비티 싹 가져오는 API
+url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities"
 response = requests.get(url, auth=("API_KEY", API_KEY))
 
 if response.status_code == 200:
     activities = response.json()
     filename = "intervals_training_log.csv"
-    headers = ["Date", "Name", "Type", "Moving Time(s)", "Distance(m)", "TSS", "NP", "Average Power", "Average HR"]
     
-    with open(filename, mode="w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(headers)
+    if activities and isinstance(activities, list):
+        # API가 보내주는 전체 필드 이름을 그대로 CSV 컬럼으로 생성
+        headers = list(activities[0].keys())
         
-        for act in activities:
-            if not isinstance(act, dict):
-                continue
-            
-            # TSS (icu_training_load -> icu_load -> load 순 확인)
-            tss = act.get("icu_training_load")
-            if tss is None:
-                tss = act.get("icu_load", act.get("load", 0))
-                
-            # NP (icu_weighted_avg_watts -> weighted_avg_watts)
-            np_val = act.get("icu_weighted_avg_watts")
-            if np_val is None:
-                np_val = act.get("weighted_avg_watts", 0)
-
-            writer.writerow([
-                str(act.get("start_date_local", ""))[:10],
-                act.get("name", "Ride"),
-                act.get("type", "Ride"),
-                act.get("moving_time", 0),
-                act.get("distance", 0),
-                tss,
-                np_val,
-                act.get("average_watts", 0),
-                act.get("average_heartrate", 0)
-            ])
-    print("Successfully generated intervals_training_log.csv")
+        with open(filename, mode="w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=headers)
+            writer.writeheader()
+            for act in activities:
+                writer.writerow(act)
+        print(f"Successfully wrote {len(activities)} activities.")
+    else:
+        print("No activities returned from API.")
 else:
-    print(f"API Error {response.status_code}: {response.text}")
-    raise Exception(f"API Request Failed with status {response.status_code}")
+    print(f"API Failed: {response.status_code}, {response.text}")
+    raise Exception(f"API Error {response.status_code}")
