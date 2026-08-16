@@ -17,10 +17,14 @@ jobs:
           API_KEY: ${{ secrets.INTERVALS_API_KEY }}
           ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
         run: |
-          # 1. 원본 CSV 다운로드 (URL의 & 기호 이스케이프)
-          curl -s -u "API_KEY:${API_KEY}" "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv?oldest=2025-01-01\&newest=2026-12-31" -o raw.csv
+          # 1. 오늘 날짜(NEWEST)와 2년 전 날짜(OLDEST)를 자동으로 동적 계산
+          NEWEST=$(date +%Y-%m-%d)
+          OLDEST=$(date -d "2 years ago" +%Y-%m-%d)
           
-          # 2. 헤더는 남기고, 데이터 부분만 2행(start_date_local) 기준 역순(최신순) 정렬
+          # 2. Intervals.icu에서 최근 2년간의 CSV 데이터 다운로드
+          curl -s -u "API_KEY:${API_KEY}" "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv?oldest=${OLDEST}&newest=${NEWEST}" -o raw.csv
+          
+          # 3. 헤더는 남기고, 데이터 부분만 날짜 기준 역순(최신순) 정렬
           head -n 1 raw.csv > intervals_training_log.csv
           tail -n +2 raw.csv | sort -t',' -k2 -r >> intervals_training_log.csv
 
