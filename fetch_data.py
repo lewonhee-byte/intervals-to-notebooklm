@@ -12,10 +12,8 @@ newest = datetime.now().strftime("%Y-%m-%d")
 
 url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities?oldest={oldest}&newest={newest}"
 
-# Intervals.icu 인증: username은 "API_KEY", password는 실제 발급받은 API 키
-auth = ("API_KEY", API_KEY)
-
-response = requests.get(url, auth=auth)
+# Intervals.icu 인증 규격: username에 "API_KEY", password에 실제 발급받은 키 값 입력
+response = requests.get(url, auth=("API_KEY", API_KEY))
 
 if response.status_code == 200:
     activities = response.json()
@@ -27,17 +25,20 @@ if response.status_code == 200:
         writer.writerow(headers)
         
         for act in activities:
+            # TSS 키 값이 icu_training_load 또는 icu_load로 들어옴
+            tss = act.get("icu_training_load") if act.get("icu_training_load") is not None else act.get("icu_load", 0)
+            
             writer.writerow([
                 act.get("start_date_local", "")[:10],
                 act.get("name", ""),
                 act.get("type", ""),
                 act.get("moving_time", 0),
                 act.get("distance", 0),
-                act.get("icu_training_load", act.get("icu_load", 0)),
+                tss,
                 act.get("icu_weighted_avg_watts", 0),
                 act.get("average_watts", 0),
                 act.get("average_heartrate", 0)
             ])
     print("Successfully updated intervals_training_log.csv")
 else:
-    print(f"Failed to fetch data: {response.status_code}, {response.text}")
+    raise Exception(f"API Error {response.status_code}: {response.text}")
