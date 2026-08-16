@@ -17,16 +17,12 @@ jobs:
           API_KEY: ${{ secrets.INTERVALS_API_KEY }}
           ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
         run: |
-          # 1. 2025-01-01부터 오늘까지의 날짜 설정
-          OLDEST="2025-01-01"
-          NEWEST=$(date +%Y-%m-%d)
+          # 1. 원본 CSV 다운로드 (URL의 & 기호 이스케이프)
+          curl -s -u "API_KEY:${API_KEY}" "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv?oldest=2025-01-01\&newest=2026-12-31" -o raw.csv
           
-          # 2. Intervals.icu에서 원본 CSV 다운로드
-          curl -s -u "API_KEY:${API_KEY}" "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv?oldest=${OLDEST}&newest=${NEWEST}" -o raw.csv
-          
-          # 3. 헤더(1행) 추출 후 데이터만 날짜/시간 기준 역순 정렬해서 합치기
+          # 2. 헤더는 남기고, 데이터 부분만 2행(start_date_local) 기준 역순(최신순) 정렬
           head -n 1 raw.csv > intervals_training_log.csv
-          tail -n +2 raw.csv | sort -r -t',' -k2 >> intervals_training_log.csv
+          tail -n +2 raw.csv | sort -t',' -k2 -r >> intervals_training_log.csv
 
       - name: Commit and push updated CSV
         run: |
