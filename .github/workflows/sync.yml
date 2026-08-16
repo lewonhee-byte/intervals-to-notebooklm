@@ -17,7 +17,7 @@ jobs:
           API_KEY: ${{ secrets.INTERVALS_API_KEY }}
           ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
         run: |
-          curl -u "API_KEY:${API_KEY}" "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv" -o intervals_training_log.csv
+          curl -u "API_KEY:${API_KEY}" "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv?oldest=2026-01-01&newest=2026-12-31" -o intervals_training_log.csv
 
       - name: Commit and push updated CSV
         run: |
