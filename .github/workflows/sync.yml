@@ -24,20 +24,9 @@ jobs:
           # 2. Intervals.icu에서 원본 CSV 다운로드
           curl -s -u "API_KEY:${API_KEY}" "https://intervals.icu/api/v1/athlete/${ATHLETE_ID}/activities.csv?oldest=${OLDEST}&newest=${NEWEST}" -o raw.csv
           
-          # 3. 최신 날짜(2026년)가 맨 위로 오도록 내림차순 정렬하여 저장
-          python3 -c "
-          import pandas as pd
-          try:
-              df = pd.read_csv('raw.csv')
-              if 'start_date_local' in df.columns:
-                  df = df.sort_values(by='start_date_local', ascending=False)
-              df.to_csv('intervals_training_log.csv', index=False)
-              print('Successfully sorted and saved CSV.')
-          except Exception as e:
-              print(f'Error sorting CSV: {e}')
-              import shutil
-              shutil.copy('raw.csv', 'intervals_training_log.csv')
-          "
+          # 3. 헤더(1행) 추출 후 데이터만 날짜/시간 기준 역순 정렬해서 합치기
+          head -n 1 raw.csv > intervals_training_log.csv
+          tail -n +2 raw.csv | sort -r -t',' -k2 >> intervals_training_log.csv
 
       - name: Commit and push updated CSV
         run: |
