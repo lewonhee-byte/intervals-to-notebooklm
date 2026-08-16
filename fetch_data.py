@@ -10,8 +10,8 @@ ATHLETE_ID = os.environ.get("INTERVALS_ATHLETE_ID")
 oldest = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
 newest = datetime.now().strftime("%Y-%m-%d")
 
+# Intervals.icu API 호출 (Basic Auth: username="API_KEY", password=발급받은 키)
 url = f"https://intervals.icu/api/v1/athlete/{ATHLETE_ID}/activities?oldest={oldest}&newest={newest}"
-
 response = requests.get(url, auth=("API_KEY", API_KEY))
 
 if response.status_code == 200:
@@ -27,14 +27,15 @@ if response.status_code == 200:
             if not isinstance(act, dict):
                 continue
             
+            # TSS / Load 필드 매핑
             tss = act.get("icu_training_load")
-            if tss is None:
+            if tss is None or tss == 0:
                 tss = act.get("icu_load", 0)
                 
             writer.writerow([
                 str(act.get("start_date_local", ""))[:10],
-                act.get("name", ""),
-                act.get("type", ""),
+                act.get("name", "Workout"),
+                act.get("type", "Ride"),
                 act.get("moving_time", 0),
                 act.get("distance", 0),
                 tss,
@@ -42,7 +43,7 @@ if response.status_code == 200:
                 act.get("average_watts", 0),
                 act.get("average_heartrate", 0)
             ])
-    print("Successfully updated intervals_training_log.csv")
+    print("Successfully generated intervals_training_log.csv")
 else:
     print(f"API Error {response.status_code}: {response.text}")
-    raise Exception(f"API Request Failed: {response.status_code}")
+    raise Exception(f"API Request Failed with status {response.status_code}")
